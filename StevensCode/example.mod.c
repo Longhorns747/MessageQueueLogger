@@ -20,9 +20,12 @@ __attribute__((section("__versions"))) = {
 	{ 0x14522340, "module_layout" },
 	{ 0x4f1939c7, "per_cpu__current_task" },
 	{ 0x7e5e301f, "unregister_kprobe" },
+	{ 0xd691cba2, "malloc_sizes" },
 	{ 0x93260715, "register_kprobe" },
 	{ 0xea147363, "printk" },
 	{ 0xb4390f9a, "mcount" },
+	{ 0x2044fa9e, "kmem_cache_alloc_trace" },
+	{ 0x37a0cba, "kfree" },
 };
 
 static const char __module_depends[]
@@ -31,7 +34,7 @@ __attribute__((section(".modinfo"))) =
 "depends=";
 
 
-MODULE_INFO(srcversion, "E97668E942A302704752B92");
+MODULE_INFO(srcversion, "D212D72E0764D8C944F779B");
 
 static const struct rheldata _rheldata __used
 __attribute__((section(".rheldata"))) = {
