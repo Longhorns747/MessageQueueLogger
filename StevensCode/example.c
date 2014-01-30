@@ -1,6 +1,7 @@
 #include <linux/kernel.h>
 #include <linux/kprobes.h>
 #include <linux/module.h>
+#include<linux/unistd.h>
 MODULE_LICENSE("GPL");
 #define MODULE_NAME "[logger] "
 static struct kprobe probe;
@@ -12,16 +13,16 @@ static struct kprobe probe;
 static int intercept(struct kprobe *kp, struct pt_regs *regs)
 {
     int ret = 0;
-    if (current->uid != uid)
-           return 0;
-    switch (regs->rax) {
+    /*if (current_uid() != uid)
+           return 0;*/
+    switch (regs->ax) {
        case __NR_mkdir:
         /* NOTE!! do not dereference user-space pointers in the kernel */
            printk(KERN_INFO MODULE_NAME
                    /* sycall pid tid args.. */
-                   "%lu %d %d args 0x%lu %d\n",
-                   regs->rax, current->pid, current->tgid,
-                   (uintptr_t)regs->rdi, (int)regs->rsi);
+                   "Hey Steven! %lu %d %d args 0x%lu %d\n",
+                   regs->ax, current->pid, current->tgid,
+                   (uintptr_t)regs->di, (int)regs->si);
            break;
        default:
            ret = -1;
