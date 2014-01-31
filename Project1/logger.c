@@ -48,6 +48,7 @@ void enqueue(node* n){
     else{
         log_queue->tail->next = n;
         log_queue->tail = n;
+	n->next = NULL;
     }
 }
 
@@ -68,7 +69,7 @@ static int intercept(struct kprobe *kp, struct pt_regs *regs)
        case __NR_mkdir:
            /* NOTE!! do not dereference user-space pointers in the kernel */
            n = create_node(regs->ax, current->pid, current->tgid, (int)t.tv_sec, NULL, 0, NULL);
-           //enqueue(n); This line breaks stuff
+           enqueue(n); 
             
            printk(KERN_INFO MODULE_NAME
                    /* sycall pid tid args.. */
@@ -86,6 +87,9 @@ int init_module(void)
 {
 
     log_queue = (queue*) kmalloc(sizeof(queue), GFP_KERNEL);
+    log_queue->head = NULL;
+    log_queue->tail = NULL;
+
 
     probe.symbol_name = "sys_mkdir";
     probe.pre_handler = intercept; /* called prior to function */
@@ -98,12 +102,12 @@ int init_module(void)
 }
 void cleanup_module(void)
 {
-    /*while(log_queue->head != NULL){
+    while(log_queue->head != NULL){
         node* temp = log_queue->head->next;
         kfree(log_queue->head);
         log_queue->head = temp;
     }
-    kfree(log_queue); This breaks stuff*/
+    kfree(log_queue);
 
     unregister_kprobe(&probe);
     printk(KERN_INFO MODULE_NAME "unloaded\n");

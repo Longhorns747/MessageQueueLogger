@@ -1,1 +1,1 @@
-cmd_/home/ethan/3210project1/HelloWorldProc/hello_kernel_proc.ko := cp /home/ethan/3210project1/HelloWorldProc/hello_kernel_proc.ko.unsigned /home/ethan/3210project1/HelloWorldProc/hello_kernel_proc.ko
+cmd_/home/steven/Prj_1/HelloWorldProc/hello_kernel_proc.ko := cp /home/steven/Prj_1/HelloWorldProc/hello_kernel_proc.ko.unsigned /home/steven/Prj_1/HelloWorldProc/hello_kernel_proc.ko
