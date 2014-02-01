@@ -35,25 +35,6 @@ typedef struct Queue{
     node* tail;
 }queue;
 
-//Proc File Functions
-static int proc_show(struct seq_file *m, void *v) {
-    seq_printf(m, "Hello!\n");
-    return 0;
-}
-
-static int proc_open(struct inode *inode, struct  file *file) {
-    return single_open(file, proc_show, NULL);
-}
-
-//Proc file structs
-static const struct file_operations my_proc_fops = {
-    .owner = THIS_MODULE,
-    .open = proc_open,
-    .read = seq_read,
-    .llseek = seq_lseek,
-    .release = single_release,
-};
-
 static queue* log_queue;
 
 node* create_node(long unsigned int sys_num, int pid, int tgid, int time_stamp, char* queue_name, int msg_length, char* msg){
@@ -83,6 +64,36 @@ void enqueue(node* n){
     mutex_unlock(queue_lock);
 }
 
+//Proc File Functions
+static int proc_show(struct seq_file *m, void *v) {
+    node* curr_node = log_queue->head;
+
+    while(curr_node != NULL)
+    {
+        seq_printf(m, "sys_call_number: %lu, ", curr_node->sys_call_number);
+        seq_printf(m, "pid: %d, ", curr_node->pid);
+        seq_printf(m, "tgid: %d, ", curr_node->tgid);
+        seq_printf(m, "time_stamp: %d, ", curr_node->time_stamp);
+        seq_printf(m, "msg: %s, ", curr_node->msg);
+        seq_printf(m, "msg_len: %d\n", curr_node->msg_length);
+        curr_node = curr_node->next;
+    } 
+    return 0;
+}
+
+static int proc_open(struct inode *inode, struct  file *file) {
+    return single_open(file, proc_show, NULL);
+}
+
+//Proc file structs
+static const struct file_operations my_proc_fops = {
+    .owner = THIS_MODULE,
+    .open = proc_open,
+    .read = seq_read,
+    .llseek = seq_lseek,
+    .release = single_release,
+};
+
 /* pt_regs defined in include/asm-x86/ptrace.h
  * *
  * * For information associating registers with function arguments, see:
@@ -101,12 +112,6 @@ static int intercept(struct kprobe *kp, struct pt_regs *regs)
            /* NOTE!! do not dereference user-space pointers in the kernel */
            n = create_node(regs->ax, current->pid, current->tgid, (int)t.tv_sec, NULL, 0, NULL);
            enqueue(n); 
-            
-           printk(KERN_INFO MODULE_NAME
-                   /* sycall pid tid args.. */
-                   "Hey Steven! %lu %d %d args 0x%lu %d\n",
-                   n->sys_call_number, n->pid, n->tgid,
-                   (uintptr_t)regs->di, (int)regs->si);
            break;
        default:
            ret = -1;
