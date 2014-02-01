@@ -1,13 +1,14 @@
 #include <linux/kernel.h>
 #include <linux/kprobes.h>
 #include <linux/module.h>
-#include<linux/unistd.h>
+#include <linux/unistd.h>
 #include <linux/time.h>
 
 MODULE_LICENSE("GPL");
 #define MODULE_NAME "[logger] "
-static struct kprobe probe;
-
+static struct kprobe open_probe;
+static struct kprobe receive_probe;
+static struct kprobe send_probe;
 
 typedef struct Node{
     struct Node* next;
@@ -48,6 +49,7 @@ void enqueue(node* n){
     else{
         log_queue->tail->next = n;
         log_queue->tail = n;
+        n->next = NULL;
     }
 }
 
@@ -56,29 +58,60 @@ void enqueue(node* n){
  * * For information associating registers with function arguments, see:
  * * arch/x86/kernel/entry_64.S
  * */
+
 static int intercept(struct kprobe *kp, struct pt_regs *regs)
 {
     int ret = 0;
+    int mlength = regs->dx;
+    char *message = kmalloc(sizeof(void*), GFP_KERNEL);
+    char c;
+    node* n;
+    
     //Get time of day
     struct timeval t;
     do_gettimeofday(&t);
-    node* n;
+
 
     switch (regs->ax) {
-       case __NR_mkdir:
-           /* NOTE!! do not dereference user-space pointers in the kernel */
-           n = create_node(regs->ax, current->pid, current->tgid, (int)t.tv_sec, NULL, 0, NULL);
-           //enqueue(n); This line breaks stuff
-            
-           printk(KERN_INFO MODULE_NAME
-                   /* sycall pid tid args.. */
-                   "Hey Steven! %lu %d %d args 0x%lu %d\n",
-                   n->sys_call_number, n->pid, n->tgid,
-                   (uintptr_t)regs->di, (int)regs->si);
-           break;
-       default:
-           ret = -1;
-           break;
+      case __NR_mq_open:
+	  char *name;
+	  name = kmalloc(sizeof(void*), GFP_KERNEL);
+	  copy_from_user(name, regs->di, strnlen_user(regs->di, 255));
+	  create_node(regs->ax, current->pid, current->tgid, (int)t.tv_sec, name, 0, NULL); 
+	  enqueue(n);
+
+	  kfree(name);
+          break;
+
+      case __NR_mq_timedsend:
+      case __NR_mq_timedreceive:
+          /*determine if message is a string by checking if each byte
+          *is a printable character, and that the last byte is null
+          *
+          */
+	  copy_from_user(message, regs->si, mlength)
+	  for(int i = 0; i < mlength; i++){
+		if(i < mlength -1){
+			if(message[i] < 32 || message[i] > 127){
+				strcpy(message, "(bin)");
+				break; 
+			}
+		else{
+			if(message[i] != NULL){
+				strcpy(message, "(bin)");
+			}
+		}
+	  }
+
+	  create_node(regs->ax, current->pid, current->tgid, (int)t.tv_sec, NULL, mlength, message); 
+	  enqueue(n);
+
+	  kfree(message);
+          break;
+
+      default:
+          ret = -1;
+          break;
     }
     return ret;
 }
@@ -87,9 +120,25 @@ int init_module(void)
 
     log_queue = (queue*) kmalloc(sizeof(queue), GFP_KERNEL);
 
-    probe.symbol_name = "sys_mkdir";
-    probe.pre_handler = intercept; /* called prior to function */
-    if (register_kprobe(&probe)) {
+    log_queue->head = NULL;
+    log_queue->tail = NULL;
+
+    open_probe.symbol_name = "sys_mq_open";
+    open_probe.pre_handler = intercept; 
+    send_probe.symbol_name = "sys_mq_timedsend";
+    send_probe.pre_handler = intercept;
+    receive_probe.symbol_name = "sys_mq_timedreceive";
+    receive_probe.pre_handler = intercept;
+    
+    if (register_kprobe(&open_probe)) {
+           printk(KERN_ERR MODULE_NAME "register_kprobe failed\n");
+           return -EFAULT;
+    }
+    if (register_kprobe(&send_probe)) {
+           printk(KERN_ERR MODULE_NAME "register_kprobe failed\n");
+           return -EFAULT;
+    }
+    if (register_kprobe(&receive_probe)) {
            printk(KERN_ERR MODULE_NAME "register_kprobe failed\n");
            return -EFAULT;
     }
@@ -98,13 +147,15 @@ int init_module(void)
 }
 void cleanup_module(void)
 {
-    /*while(log_queue->head != NULL){
+    while(log_queue->head != NULL){
         node* temp = log_queue->head->next;
         kfree(log_queue->head);
         log_queue->head = temp;
     }
-    kfree(log_queue); This breaks stuff*/
+    kfree(log_queue);
 
-    unregister_kprobe(&probe);
+    unregister_kprobe(&open_probe);
+    unregister_kprobe(&send_probe);
+    unregister_kprobe(&receive_probe);
     printk(KERN_INFO MODULE_NAME "unloaded\n");
 }
