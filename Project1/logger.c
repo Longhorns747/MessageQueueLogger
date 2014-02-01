@@ -11,10 +11,13 @@
 #include <linux/time.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <linux/mutex.h>
 
 MODULE_LICENSE("GPL");
 #define MODULE_NAME "[logger] "
+
 static struct kprobe probe;
+struct mutex *queue_lock;
 
 typedef struct Node{
     struct Node* next;
@@ -66,6 +69,7 @@ node* create_node(long unsigned int sys_num, int pid, int tgid, int time_stamp, 
 }
 
 void enqueue(node* n){
+    mutex_lock(queue_lock);
     if (log_queue->head == NULL){
         log_queue->head = n;
         log_queue->tail = n;
@@ -76,6 +80,7 @@ void enqueue(node* n){
         log_queue->tail = n;
 	n->next = NULL;
     }
+    mutex_unlock(queue_lock);
 }
 
 /* pt_regs defined in include/asm-x86/ptrace.h
@@ -112,6 +117,7 @@ static int intercept(struct kprobe *kp, struct pt_regs *regs)
 
 int init_module(void)
 {
+    mutex_init(queue_lock);
     log_queue = (queue*) kmalloc(sizeof(queue), GFP_KERNEL);
     log_queue->head = NULL;
     log_queue->tail = NULL;
