@@ -3,6 +3,7 @@
 #include <linux/module.h>
 #include <linux/unistd.h>
 #include <linux/time.h>
+#include <asm/uaccess.h>
 
 MODULE_LICENSE("GPL");
 #define MODULE_NAME "[logger] "
@@ -64,7 +65,8 @@ static int intercept(struct kprobe *kp, struct pt_regs *regs)
     int ret = 0;
     int mlength = regs->dx;
     char *message = kmalloc(sizeof(void*), GFP_KERNEL);
-    char c;
+    char *name;
+    int i;
     node* n;
     
     //Get time of day
@@ -74,9 +76,8 @@ static int intercept(struct kprobe *kp, struct pt_regs *regs)
 
     switch (regs->ax) {
       case __NR_mq_open:
-	  char *name;
 	  name = kmalloc(sizeof(void*), GFP_KERNEL);
-	  copy_from_user(name, regs->di, strnlen_user(regs->di, 255));
+	  copy_from_user(name, (char *)regs->di, strnlen_user((char *)regs->di, 255));
 	  create_node(regs->ax, current->pid, current->tgid, (int)t.tv_sec, name, 0, NULL); 
 	  enqueue(n);
 
@@ -89,15 +90,15 @@ static int intercept(struct kprobe *kp, struct pt_regs *regs)
           *is a printable character, and that the last byte is null
           *
           */
-	  copy_from_user(message, regs->si, mlength)
-	  for(int i = 0; i < mlength; i++){
+	  copy_from_user(message, (char *)regs->si, mlength);
+	  for(i = 0; i < mlength; i++){
 		if(i < mlength -1){
-			if(message[i] < 32 || message[i] > 127){
+			if(*(message + i) < 32 || *(message + i) > 127){
 				strcpy(message, "(bin)");
 				break; 
 			}
-		else{
-			if(message[i] != NULL){
+		}else{
+			if(*(message + i) != 0){
 				strcpy(message, "(bin)");
 			}
 		}
@@ -115,6 +116,7 @@ static int intercept(struct kprobe *kp, struct pt_regs *regs)
     }
     return ret;
 }
+
 int init_module(void)
 {
 
