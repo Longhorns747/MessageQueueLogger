@@ -1,58 +1,46 @@
 /*
- * Print a simple Hello World to a proc file 
+ * Sample proc file implementation
  */
 
-#include <linux/module.h>	/* Specifically, a module */
-#include <linux/kernel.h>	/* We're doing kernel work */
-#include <linux/proc_fs.h>	/* Necessary because we use the proc fs */
+#include <linux/module.h>
+#include <linux/proc_fs.h>
+#include <linux/seq_file.h>
 
-#define procfs_name "helloworld"
+//Function where things are actually printed to proc file
+static int proc_show(struct seq_file *m, void *v) {
+    //char msg[10];
 
-struct proc_dir_entry *hello_proc;
-
-int procfile_read(char *buffer,
-	      char **buffer_location,
-	      off_t offset, int buffer_length, int *eof, void *data)
-{
-	int ret;
-	
-	printk(KERN_INFO "procfile_read (/proc/%s) called\n", procfs_name);
-	
-	if (offset > 0) {
-		/* we have finished to read, return 0 */
-		ret  = 0;
-	} else {
-		/* fill the buffer, return the buffer size */
-		ret = sprintf(buffer, "HelloWorld!\n");
-	}
-
-	return ret;
+    //for(int i = 0; i < 10; i++)
+    //{
+        //strcat(msg, "b");
+    //}
+    
+    seq_printf(m, "Hello!\n");
+    return 0;
 }
 
-int init_module()
-{
-	hello_proc = create_proc_entry(procfs_name, 0644, NULL);
-	
-	if (hello_proc == NULL) {
-		remove_proc_entry(procfs_name, &proc_root);
-		printk(KERN_ALERT "Error: Could not initialize /proc/%s\n",
-		       procfs_name);
-		return -ENOMEM;
-	}
-
-	hello_proc->read_proc = procfile_read;
-	hello_proc->owner 	 = THIS_MODULE;
-	hello_proc->mode 	 = S_IFREG | S_IRUGO;
-	hello_proc->uid 	 = 0;
-	hello_proc->gid 	 = 0;
-	hello_proc->size 	 = 37;
-
-	printk(KERN_INFO "/proc/%s created\n", procfs_name);	
-	return 0;	/* everything is ok */
+static int proc_open(struct inode *inode, struct  file *file) {
+    return single_open(file, proc_show, NULL);
 }
 
-void cleanup_module()
-{
-	remove_proc_entry(procfs_name, &proc_root);
-	printk(KERN_INFO "/proc/%s removed\n", procfs_name);
+static const struct file_operations my_proc_fops = {
+    .owner = THIS_MODULE,
+    .open = proc_open,
+    .read = seq_read,
+    .llseek = seq_lseek,
+    .release = single_release,
+};
+
+//Need proc_create in the final implementation
+static int __init my_proc_init(void) {
+    proc_create("logger", 0, NULL, &my_proc_fops);
+    return 0;
 }
+
+static void __exit my_proc_exit(void) {
+    remove_proc_entry("logger", NULL);
+}
+
+MODULE_LICENSE("GPL");
+module_init(my_proc_init);
+module_exit(my_proc_exit);
