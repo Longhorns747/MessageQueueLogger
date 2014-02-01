@@ -1,1 +1,0 @@
-cmd_/home/steven/Prj_1/Project1/logger.ko.unsigned := ld -r -m elf_x86_64 -T /usr/src/kernels/2.6.32-431.3.1.el6.x86_64/scripts/module-common.lds --build-id -o /home/steven/Prj_1/Project1/logger.ko.unsigned /home/steven/Prj_1/Project1/logger.o /home/steven/Prj_1/Project1/logger.mod.o 
