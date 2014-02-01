@@ -1,13 +1,20 @@
+/**
+ * A Linux Kernel module to trace and log POSIX Message Queue System Calls
+ * Utilizes Proc files to actually display logging to the user
+ * By Ethan Shernan, Chris Gordon, Steven Wojcio (AKA, The Ballmers)
+ */
+
 #include <linux/kernel.h>
 #include <linux/kprobes.h>
 #include <linux/module.h>
-#include<linux/unistd.h>
+#include <linux/unistd.h>
 #include <linux/time.h>
+#include <linux/proc_fs.h>
+#include <linux/seq_file.h>
 
 MODULE_LICENSE("GPL");
 #define MODULE_NAME "[logger] "
 static struct kprobe probe;
-
 
 typedef struct Node{
     struct Node* next;
@@ -24,6 +31,25 @@ typedef struct Queue{
     node* head;
     node* tail;
 }queue;
+
+//Proc File Functions
+static int proc_show(struct seq_file *m, void *v) {
+    seq_printf(m, "Hello!\n");
+    return 0;
+}
+
+static int proc_open(struct inode *inode, struct  file *file) {
+    return single_open(file, proc_show, NULL);
+}
+
+//Proc file structs
+static const struct file_operations my_proc_fops = {
+    .owner = THIS_MODULE,
+    .open = proc_open,
+    .read = seq_read,
+    .llseek = seq_lseek,
+    .release = single_release,
+};
 
 static queue* log_queue;
 
@@ -83,13 +109,13 @@ static int intercept(struct kprobe *kp, struct pt_regs *regs)
     }
     return ret;
 }
+
 int init_module(void)
 {
-
     log_queue = (queue*) kmalloc(sizeof(queue), GFP_KERNEL);
     log_queue->head = NULL;
     log_queue->tail = NULL;
-
+    proc_create("logger", 0, NULL, &my_proc_fops);
 
     probe.symbol_name = "sys_mkdir";
     probe.pre_handler = intercept; /* called prior to function */
@@ -100,6 +126,7 @@ int init_module(void)
     printk(KERN_INFO MODULE_NAME "loaded\n");
     return 0;
 }
+
 void cleanup_module(void)
 {
     while(log_queue->head != NULL){
@@ -109,6 +136,7 @@ void cleanup_module(void)
     }
     kfree(log_queue);
 
+    remove_proc_entry("logger", NULL);
     unregister_kprobe(&probe);
     printk(KERN_INFO MODULE_NAME "unloaded\n");
 }
