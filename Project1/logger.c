@@ -12,11 +12,14 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/mutex.h>
+#include <asm/uaccess.h>
 
 MODULE_LICENSE("GPL");
 #define MODULE_NAME "[logger] "
 
-static struct kprobe probe;
+static struct kprobe open_probe;
+static struct kprobe receive_probe;
+static struct kprobe send_probe;
 struct mutex queue_lock;
 
 typedef struct Node{
@@ -102,20 +105,56 @@ static const struct file_operations my_proc_fops = {
 static int intercept(struct kprobe *kp, struct pt_regs *regs)
 {
     int ret = 0;
+    int mlength = regs->dx;
+    char *message = kmalloc(sizeof(void*), GFP_KERNEL);
+    char *name;
+    int i;
+    node* n;
+    
     //Get time of day
     struct timeval t;
     do_gettimeofday(&t);
-    node* n;
+
 
     switch (regs->ax) {
-       case __NR_mkdir:
-           /* NOTE!! do not dereference user-space pointers in the kernel */
-           n = create_node(regs->ax, current->pid, current->tgid, (int)t.tv_sec, NULL, 0, NULL);
-           enqueue(n); 
-           break;
-       default:
-           ret = -1;
-           break;
+      case __NR_mq_open:
+	  name = kmalloc(sizeof(void*), GFP_KERNEL);
+	  copy_from_user(name, (char *)regs->di, strnlen_user((char *)regs->di, 255));
+	  create_node(regs->ax, current->pid, current->tgid, (int)t.tv_sec, name, 0, NULL); 
+	  enqueue(n);
+
+	  kfree(name);
+          break;
+
+      case __NR_mq_timedsend:
+      case __NR_mq_timedreceive:
+          /*determine if message is a string by checking if each byte
+          *is a printable character, and that the last byte is null
+          *
+          */
+	  copy_from_user(message, (char *)regs->si, mlength);
+	  for(i = 0; i < mlength; i++){
+		if(i < mlength -1){
+			if(*(message + i) < 32 || *(message + i) > 127){
+				strcpy(message, "(bin)");
+				break; 
+			}
+		}else{
+			if(*(message + i) != 0){
+				strcpy(message, "(bin)");
+			}
+		}
+	  }
+
+	  create_node(regs->ax, current->pid, current->tgid, (int)t.tv_sec, NULL, mlength, message); 
+	  enqueue(n);
+
+	  kfree(message);
+          break;
+
+      default:
+          ret = -1;
+          break;
     }
     return ret;
 }
@@ -128,9 +167,22 @@ int init_module(void)
     log_queue->tail = NULL;
     proc_create("logger", 0, NULL, &my_proc_fops);
 
-    probe.symbol_name = "sys_mkdir";
-    probe.pre_handler = intercept; /* called prior to function */
-    if (register_kprobe(&probe)) {
+    open_probe.symbol_name = "sys_mq_open";
+    open_probe.pre_handler = intercept; 
+    send_probe.symbol_name = "sys_mq_timedsend";
+    send_probe.pre_handler = intercept;
+    receive_probe.symbol_name = "sys_mq_timedreceive";
+    receive_probe.pre_handler = intercept;
+
+    if (register_kprobe(&open_probe)) {
+           printk(KERN_ERR MODULE_NAME "register_kprobe failed\n");
+           return -EFAULT;
+    }
+    if (register_kprobe(&send_probe)) {
+           printk(KERN_ERR MODULE_NAME "register_kprobe failed\n");
+           return -EFAULT;
+    }
+    if (register_kprobe(&receive_probe)) {
            printk(KERN_ERR MODULE_NAME "register_kprobe failed\n");
            return -EFAULT;
     }
@@ -148,6 +200,8 @@ void cleanup_module(void)
     kfree(log_queue);
 
     remove_proc_entry("logger", NULL);
-    unregister_kprobe(&probe);
+    unregister_kprobe(&open_probe);
+    unregister_kprobe(&send_probe);
+    unregister_kprobe(&receive_probe);
     printk(KERN_INFO MODULE_NAME "unloaded\n");
 }
