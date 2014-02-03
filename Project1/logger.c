@@ -115,16 +115,15 @@ static int intercept(struct kprobe *kp, struct pt_regs *regs)
     struct timeval t;
     do_gettimeofday(&t);
 
-
     switch (regs->ax) {
       case __NR_mq_open:
-	  name = kmalloc(sizeof(void*), GFP_KERNEL);
-	  copy_from_user(name, (char *)regs->di, strnlen_user((char *)regs->di, 255));
-	  n = create_node(regs->ax, current->pid, current->tgid, (int)t.tv_sec, name, 0, NULL); 
-	  enqueue(n);
+	    name = kmalloc(sizeof(void*), GFP_KERNEL);
+	    copy_from_user(name, (char *)regs->di, strnlen_user((char *)regs->di, 255));
+	    n = create_node(regs->ax, current->pid, current->tgid, (int)t.tv_sec, name, 0, NULL); 
+	    enqueue(n);
 
-	  kfree(name);
-          break;
+	    kfree(name);
+      break;
 
       case __NR_mq_timedsend:
       case __NR_mq_timedreceive:
@@ -146,11 +145,11 @@ static int intercept(struct kprobe *kp, struct pt_regs *regs)
 		}
 	  }
 	  */
-	  n = create_node(regs->ax, current->pid, current->tgid, (int)t.tv_sec, NULL, mlength, message); 
-	  enqueue(n);
+	    n = create_node(regs->ax, current->pid, current->tgid, (int)t.tv_sec, NULL, mlength, message); 
+	    enqueue(n);
 
-	  kfree(message);
-          break;
+	    kfree(message);
+      break;
 
       default:
           ret = -1;
