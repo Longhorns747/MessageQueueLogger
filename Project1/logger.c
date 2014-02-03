@@ -131,8 +131,9 @@ static int intercept(struct kprobe *kp, struct pt_regs *regs)
           /*determine if message is a string by checking if each byte
           *is a printable character, and that the last byte is null
           *
-         
+          
 	  copy_from_user(message, (char *)regs->si, mlength);
+	  */
 	  for(i = 0; i < mlength; i++){
 		if(i < mlength -1){
 			if(*(message + i) < 32 || *(message + i) > 127){
@@ -145,7 +146,7 @@ static int intercept(struct kprobe *kp, struct pt_regs *regs)
 			}
 		}
 	  }
-	  */
+	  
 	  n = create_node(regs->ax, current->pid, current->tgid, (int)t.tv_sec, NULL, mlength, message); 
 	  enqueue(n);
 
