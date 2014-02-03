@@ -120,7 +120,7 @@ static int intercept(struct kprobe *kp, struct pt_regs *regs)
       case __NR_mq_open:
 	  name = kmalloc(sizeof(void*), GFP_KERNEL);
 	  copy_from_user(name, (char *)regs->di, strnlen_user((char *)regs->di, 255));
-	  create_node(regs->ax, current->pid, current->tgid, (int)t.tv_sec, name, 0, NULL); 
+	  n = create_node(regs->ax, current->pid, current->tgid, (int)t.tv_sec, name, 0, NULL); 
 	  enqueue(n);
 
 	  kfree(name);
@@ -131,7 +131,7 @@ static int intercept(struct kprobe *kp, struct pt_regs *regs)
           /*determine if message is a string by checking if each byte
           *is a printable character, and that the last byte is null
           *
-          */
+         
 	  copy_from_user(message, (char *)regs->si, mlength);
 	  for(i = 0; i < mlength; i++){
 		if(i < mlength -1){
@@ -145,8 +145,8 @@ static int intercept(struct kprobe *kp, struct pt_regs *regs)
 			}
 		}
 	  }
-
-	  create_node(regs->ax, current->pid, current->tgid, (int)t.tv_sec, NULL, mlength, message); 
+	  */
+	  n = create_node(regs->ax, current->pid, current->tgid, (int)t.tv_sec, NULL, mlength, message); 
 	  enqueue(n);
 
 	  kfree(message);
