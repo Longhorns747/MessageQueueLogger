@@ -19,3 +19,5 @@
 *.mod*
 modules.order
 Module.symvers
+.logger*
+.tmp_versions*
