@@ -1,5 +1,4 @@
 obj-m += logger.o
-ccflags-y := -std=gnu99
 
 all:
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules

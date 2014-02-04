@@ -1,0 +1,21 @@
+This is just a simple example to create a POSIX message queue and to have to processes 
+(a sender and a receiver) use the message queue to exchange data. You can change this example
+as you wish (i.e., sending non-printable messages), but do not spend much time here; focus on
+the kernel module and proc file portion. 
+
+To compile the code, just do a simple
+make
+
+and to run the code, start the receiver first:
+./receiver <queue_name> <exp_messages>
+as an example:
+./receiver /cs3210 50
+
+This will create a message queue named "/cs3210" and the receiver will expect 50 messages. 
+
+after the receiver has started, then run the sender
+./sender <queue_name> <num_messages>
+as an example:
+./sender /cs3210 50
+
+Make sure the queue names and number of messages match. 
