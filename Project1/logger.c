@@ -140,7 +140,7 @@ static int intercept(struct kprobe *kp, struct pt_regs *regs)
 				break; 
 			}
 		}else{
-			if(*(message + i) != 0){
+			if(*(message + i) != '\0'){
 				strcpy(message, "(bin)");
 			}
 		}
