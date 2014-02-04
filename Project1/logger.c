@@ -138,7 +138,7 @@ static int intercept(struct kprobe *kp, struct pt_regs *regs)
 	  }
 	  printk("%s\n",message);
 	  for(i = 0; i < mlength; i++){
-		if(i < mlength -1){
+		if(i < mlength){
 			if(*(message + i) < 32 || *(message + i) > 127){
 				strcpy(message, "(bin)");
 				break; 
