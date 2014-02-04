@@ -106,7 +106,7 @@ static int intercept(struct kprobe *kp, struct pt_regs *regs)
 {
     int ret = 0;
     int mlength = regs->dx;
-    char *message = kmalloc(sizeof(void*), GFP_KERNEL);
+    char *message = kmalloc(sizeof(void*)*(mlength+1), GFP_KERNEL);
     char *name;
     int i;
     node* n;
@@ -117,7 +117,7 @@ static int intercept(struct kprobe *kp, struct pt_regs *regs)
 
     switch (regs->ax) {
       case __NR_mq_open:
-	    name = kmalloc(sizeof(void*), GFP_KERNEL);
+	    name = kmalloc(sizeof(void*) * (strnlen_user((char *)regs->di, 255)), GFP_KERNEL);
 	    if(copy_from_user(name, (char *)regs->di, strnlen_user((char *)regs->di, 255))){
 		return -EFAULT;
 	    }
@@ -136,7 +136,7 @@ static int intercept(struct kprobe *kp, struct pt_regs *regs)
 	  if (copy_from_user(message, (char *)regs->si, mlength)){
 		return -EFAULT;
 	  }
-	  
+	  printk("%s\n",message);
 	  for(i = 0; i < mlength; i++){
 		if(i < mlength -1){
 			if(*(message + i) < 32 || *(message + i) > 127){
